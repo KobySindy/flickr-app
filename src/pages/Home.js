@@ -1,30 +1,42 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { getData } from "../api/apiHelper";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-function Home({
-  setPage,
-  setFlickrPayload,
-  currentPage,
-  flickrPayload,
-  pickPhoto,
-}) {
+function Home({ pickPhoto }) {
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [photos, setPhotos] = useState([]);
+  let isLoading = false;
+
   function scrollHandler(e) {
+    if (totalPages === currentPage) {
+      return;
+    }
     const target = e.target;
     if (target.scrollHeight - target.scrollTop <= target.clientHeight) {
-      setPage(currentPage + 1);
-      getData(setFlickrPayload, currentPage);
-
-      console.log("Bottom");
+      fetchMorePhotos();
     }
   }
 
-  useEffect(async () => {
-    await getData(setFlickrPayload, currentPage);
+  const fetchMorePhotos = async () => {
+    if (isLoading) {
+      return;
+    }
+    isLoading = true;
+    const data = await getData(currentPage);
+    setCurrentPage(data.photos.page);
+    setTotalPages(data.photos.pages);
+    setPhotos((prevState) => {
+      return [...prevState, ...data.photos.photo];
+    });
+    isLoading = false;
+  };
 
-    console.log(`current Page: ${currentPage}`);
+  useEffect(async () => {
+    await fetchMorePhotos();
   }, []);
+
   return (
     <>
       {currentPage}
@@ -32,11 +44,11 @@ function Home({
         style={{ width: "100%", height: "100vh", overflowY: "scroll" }}
         className='box'
         onScroll={(e) => scrollHandler(e)}>
-        {flickrPayload.photos.map((photo) => {
+        {photos.map((photo, index) => {
           let suffix = "q";
           let photoSrc = `https://live.staticflickr.com/${photo.server}/${photo.id}_${photo.secret}_${suffix}.jpg`;
           return (
-            <Link key={photo.id} to={`photo/${photo.id}`}>
+            <Link key={index} to={`photo/${photo.id}`}>
               <img onClick={() => pickPhoto(photo)} src={photoSrc} />
             </Link>
           );
